@@ -100,8 +100,21 @@ void insert_port(HEADERPACKET* msg, int port){
 	static mutex m;
 	while(true){
 		if(m.try_lock()){
-			int ID = msg->startID;
-			g_pNetwork->client_port_map.insert({ID, port});
+			client_port_map.insert({port, msg->startID});
+			m.unlock();
+			break;
+		}
+		else{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+	}
+
+	while(true){
+		if(m.try_lock()){
+			map<int, int>::iterator iter;
+			for(iter = client_port_map.begin(); iter != client_port_map.end(); ++iter){
+				cout << "key : " << (*iter).first << ", value : " << (*iter).second << endl;
+			}
 			m.unlock();
 			break;
 		}
@@ -116,9 +129,9 @@ void pop_port(int port){
 	while(true){
 		if(m.try_lock()){
 			map<int, int>::iterator iter;
-			for(iter = g_pNetwork->client_port_map.begin(); iter != g_pNetwork->client_port_map.end(); ++iter){
+			for(iter = client_port_map.begin(); iter != client_port_map.end(); ++iter){
 				if((*iter).second == port)
-					g_pNetwork->client_port_map.erase((*iter).first);
+					client_port_map.erase((*iter).first);
 			}
 			m.unlock();
 			break;
@@ -336,8 +349,6 @@ static void *ClientServiceThread(void *arg)
 	clientThd->timeout  = 30;
 	fd_socket = clientThd->s;
 	fd_max = fd_socket+1;
-	// res = recv( fd_socket, buf, CMD_HDR_SIZE, 0 );
-	// insert_port((HEADERPACKET*)buf, fd_socket);
 
 	while( clientThd->timeout > 0 ) {
 		memset(buf, 0, sizeof(buf));
@@ -371,7 +382,6 @@ static void *ClientServiceThread(void *arg)
 			}
 		}
 		retry_cnt = 5;
-		cout << buf << endl;
 		
 		if(cmd_parser(*clientThd, (HEADERPACKET *)buf) == -1) {
 			cout << "cmd_parser return -1" << endl;
@@ -461,6 +471,9 @@ static void *listenThd(void *arg)
 		thisThd->port.s = news;
 		thisThd->port.addr = addr;
 		thisThd->port.timeout = 30;
+		
+		// res = recv( fd_socket, buf, CMD_HDR_SIZE, 0 );
+		// insert_port((HEADERPACKET*)buf, fd_socket);
 		ret = pthread_create( &thisThd->clientThread, NULL, ClientServiceThread, (void*)&thisThd->port);
 		if( ret != 0 ){
 			TRACE_ERR( "ERROR create ptt client service thread\n" );

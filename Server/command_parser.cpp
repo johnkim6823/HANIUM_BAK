@@ -28,6 +28,8 @@ cmdp_desp parser_desp[] =
 	// {CONFIG_SND					, configuration_send	},
 	// {CONFIG_RES					, configuration_response},
 	{STILL_ALIVE				, still_alive			},
+	{HI_I_M						, hi_i_am				},
+	{NICE_2_MEET_U				, nice_to_meet_you		},
 
 
 	// Testing command
@@ -44,15 +46,18 @@ int cmd_parser(IO_PORT port, HEADERPACKET *pmsg)
 	int ack, i=0, len;
 	len = sizeof(parser_desp) / sizeof(parser_desp[0]);
 
+	// cout << "---------------------------------" << endl;
+	// cout << "port : " << port.s << endl;
 	// cout << hex << (int)pmsg->startID << endl;
 	// cout << (int)pmsg->destID << endl;
 	// cout << (int)pmsg->command << endl;
 	// cout << (int)pmsg->dataType << endl;
 	// cout << dec << (int)pmsg->dataSize << endl;
+	// cout << "---------------------------------" << endl;
 
 	if(pmsg->destID != ThisID){
-		cout << "wrong destination!! " << endl;
-		return -1; //"wrong send";
+		cout << port.s << " port has problem, Wrong destination!! " << endl;
+		return -1; //"HEADERPACKET' destID != ThisID";
 	}
 
 	for (i = 0, ack = -3; i < len; i++){

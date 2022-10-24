@@ -66,8 +66,6 @@ typedef struct
 	u_int32_t networkLoop;
 	u_int32_t recvLoop;
 	u_int32_t m_socket;
-	map<int, int> client_port_map;
-
 	IO_PORT port;
 
 }NETWORK_CONTEXT;
@@ -94,6 +92,8 @@ void makePacket(uint8_t destID, uint8_t cmd, uint8_t dataType, uint32_t dataSize
 
 NETWORK_CONTEXT *g_pNetwork;
 HEADERPACKET sendDataPacket;
+map<int, int> client_port_map;
+
 char x;
 
 #include "../DB/bout_database.cpp"

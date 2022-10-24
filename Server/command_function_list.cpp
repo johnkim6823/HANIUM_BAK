@@ -38,6 +38,21 @@ int still_alive(HEADERPACKET* msg){
 	
 }
 
+/*------------------hi i am & nice to meet you----------------------------*/
+int hi_i_am(HEADERPACKET* msg){
+	insert_port(msg, (int)&g_pNetwork->port.s);
+	makePacket(msg->startID, 0xf1, 0x00, 0x00);
+
+	send_binary(&g_pNetwork->port, sizeof(HEADERPACKET), p_packet);
+	return 1;
+}
+int nice_to_meet_you(HEADERPACKET* msg){
+	cout << "Connect success to Server" << endl;
+	
+	return 1;
+}
+/*------------------------------------------------------------------------*/
+
 /*------------------public key send & response----------------------------*/
 int public_key_send(HEADERPACKET* msg){
 	reshape_buffer(msg->dataType, msg->dataSize);
@@ -101,7 +116,7 @@ int video_data_send(HEADERPACKET* msg){
 	frame_dir = s_dir + table_name + "/" + frame_dir; 
 	const char* file_name = frame_dir.c_str();
 
-	cout << "video file name: " << file_name << endl;
+	//cout << "video file name: " << file_name << endl;
 
 	file = fopen(file_name, "wb");
 
@@ -220,7 +235,7 @@ int verify_request(HEADERPACKET* msg){
 		}
 
 		map<string, vector<string>>::iterator iter;
-		for (iter = key_CID_map.begin(); iter != key_CID_map.end(); ++iter) { //ê²??ƒ‰
+		for (iter = key_CID_map.begin(); iter != key_CID_map.end(); ++iter) { //ï¿½??ï¿½ï¿½
 			vector<string> inVect = (*iter).second;
 			int str_size = CID_size * (inVect.size() + 1);
 
