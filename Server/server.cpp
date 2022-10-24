@@ -336,8 +336,8 @@ static void *ClientServiceThread(void *arg)
 	clientThd->timeout  = 30;
 	fd_socket = clientThd->s;
 	fd_max = fd_socket+1;
-	res = recv( fd_socket, buf, CMD_HDR_SIZE, 0 );
-	insert_port((HEADERPACKET*)buf, fd_socket);
+	// res = recv( fd_socket, buf, CMD_HDR_SIZE, 0 );
+	// insert_port((HEADERPACKET*)buf, fd_socket);
 
 	while( clientThd->timeout > 0 ) {
 		memset(buf, 0, sizeof(buf));
