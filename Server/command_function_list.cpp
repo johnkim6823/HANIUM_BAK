@@ -40,8 +40,8 @@ int still_alive(HEADERPACKET* msg){
 
 /*------------------hi i am & nice to meet you----------------------------*/
 int hi_i_am(HEADERPACKET* msg){
-	insert_port(msg, (int)&g_pNetwork->port.s);
-	makePacket(msg->startID, 0xf1, 0x00, 0x00);
+	insert_port(msg->destID, (int)&g_pNetwork->port.s);
+	makePacket(msg->startID, 0xf9, 0x00, 0x00);
 
 	send_binary(&g_pNetwork->port, sizeof(HEADERPACKET), p_packet);
 	return 1;

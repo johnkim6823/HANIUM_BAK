@@ -96,11 +96,11 @@ string get_table_name(){
     return s_CID;
 }
 
-void insert_port(HEADERPACKET* msg, int port){
+void insert_port(int ID, int port){
 	static mutex m;
 	while(true){
 		if(m.try_lock()){
-			client_port_map.insert({port, msg->startID});
+			client_port_map.insert({port, ID});
 			m.unlock();
 			break;
 		}
