@@ -66,7 +66,7 @@ int send_pubKey_to_server()
     char *pubKey_buffer = new char[pubKey_bufsize];
     strcpy(pubKey_buffer, publicKey.c_str());
 
-    makePacket(Server, 0x00, 0xa0, strlen(pubKey_buffer));
+    makePacket(Server, PUBKEY_SND, 0xa0, strlen(pubKey_buffer));
     void *p_packet = &sendDataPacket;
 
     if (!send_binary(&g_pNetwork->port, CMD_HDR_SIZE, p_packet))
