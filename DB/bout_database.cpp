@@ -21,10 +21,9 @@ struct db_user {
 };
 
 void mkdir_func(string str){
-	if(mkdir(str.c_str(), 0777) == -1 && errno == EEXIST){
-		if(errno != EEXIST)
-			fprintf(stderr, "%s directory create error: %s\n", strerror(errno));
-			exit(0);
+	if(mkdir(str.c_str(), 0777) == -1 && errno != EEXIST){
+		fprintf(stderr, "%s directory create error: %s\n", strerror(errno));
+		exit(0);
 	}
 	else cout << "Create a directory for storing images" << endl;
 }

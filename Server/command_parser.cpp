@@ -65,6 +65,3 @@ int cmd_parser(IO_PORT port, HEADERPACKET *pmsg)
 	return 0;
 }
 #endif
-
-
-
