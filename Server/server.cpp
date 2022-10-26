@@ -18,17 +18,10 @@
 #define CMD_BACKGROUND 1
 #define THIS_IS_SERVER
 
-#include "command_parser.h"
 #include "server.h"
-#include "command_define_list.h"
 #include "tracex.h"
-#include "command_function_list.cpp"
 
 using namespace std;
-
-void create_table();
-void insert_database(char* CID, char* Hash);
-int cmd_parser(IO_PORT port, HEADERPACKET *pmsg);
 
 void closesocket(SOCKET sock_fd);
 
@@ -61,37 +54,6 @@ string getCID() {
     if(s_CID.length() == 21) {
         s_CID = s_CID.append("00");
     }
-    
-    return s_CID;
-}
-
-void mkdir_func(string str){
-	if(mkdir(str.c_str(), 0777) == -1 && errno == EEXIST){
-		if(errno == EEXIST)
-			cout << "directory already exist" << endl;
-		else{
-			fprintf(stderr, "%s directory create error: %s\n", strerror(errno));
-			exit(0);
-		}
-	}
-}
-
-string get_table_name(){
-	struct timeb tb;   // <sys/timeb.h>                       
-    struct tm tstruct;                      
-    std::ostringstream oss;   
-    
-    string s_CID;                             
-    char buf[128];                                            
-                                                              
-    ftime(&tb);
-    // For Thread safe, use localtime_r
-    if (nullptr != localtime_r(&tb.time, &tstruct)) {         
-        strftime(buf, sizeof(buf), "%Y_%m%d", &tstruct);
-        oss << buf; // YEAR_MMDD
-    }              
-
-    s_CID = oss.str();
     
     return s_CID;
 }
@@ -329,11 +291,6 @@ static void *ClientServiceThread(void *arg)
 	uint8_t buf[CMD_HDR_SIZE];
 	uint8_t cmd[100]={0,};
 
-	string s_dir(storage_dir);
-	string storage_dir_name = storage_dir + table_name;
-	x = table_name[8];
-	mkdir_func(storage_dir_name);
-
 	pthread_t mythread;
 	mythread = pthread_self();
 	pthread_detach( mythread );
@@ -472,8 +429,6 @@ static void *listenThd(void *arg)
 		thisThd->port.addr = addr;
 		thisThd->port.timeout = 30;
 		
-		// res = recv( fd_socket, buf, CMD_HDR_SIZE, 0 );
-		// insert_port((HEADERPACKET*)buf, fd_socket);
 		ret = pthread_create( &thisThd->clientThread, NULL, ClientServiceThread, (void*)&thisThd->port);
 		if( ret != 0 ){
 			TRACE_ERR( "ERROR create ptt client service thread\n" );
@@ -512,10 +467,6 @@ int initServer()
 		return -2;
 	}
 	
-	table_name = get_table_name();
-	//SQL Database connect
-	init_DB(mysqlID);
-	
 	res = pthread_create(&g_pNetwork->listenThread, NULL, listenThd, (void*)g_pNetwork);
 	if(res<0){
 		TRACE_ERR("Server Listen thread init fail\n");
@@ -545,8 +496,6 @@ void termServer()
 		}
 		sleep(3);
 	}
-	
-	term_database();
 	
 	if(g_pNetwork){
 		free(g_pNetwork);

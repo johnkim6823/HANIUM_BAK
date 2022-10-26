@@ -1,14 +1,16 @@
 
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <mysql.h>
 #include <cstring>
 #include <vector>
+#include <sstream>
+#include <sys/timeb.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
-MYSQL *conn;
-MYSQL_RES *res;
-MYSQL_ROW row;
-string table_name;
+#include "Database_cfg.h"
 
 struct db_user {
 	char *server;
@@ -18,17 +20,74 @@ struct db_user {
 	std::string table;
 };
 
-struct db_user mysqlID;
+void mkdir_func(string str){
+	if(mkdir(str.c_str(), 0777) == -1 && errno == EEXIST){
+		if(errno != EEXIST)
+			fprintf(stderr, "%s directory create error: %s\n", strerror(errno));
+			exit(0);
+	}
+	else cout << "Create a directory for storing images" << endl;
+}
 
-void insert_database(char* CID, char* Hash, char* Signed_Hash);
-void insert_pk_database(string key_ID, char* key_value);
-string get_latest_key_ID(char* order);
-void get_list(vector<string> &list, string table, string first_cid, string last_cid, int Switch);
-MYSQL* mysql_connection_setup(struct db_user sql_user);
-MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query);
-void create_table();
+class bout_database{
+private:
+	struct db_user mysqlID;
+	MYSQL *conn;
+	MYSQL_RES *res;
+	MYSQL_ROW row;
 
-void initDatabase(struct db_user *db_info){
+public:
+	char x;
+	string table_name;
+
+	bout_database();
+	~bout_database();
+	void insert_database(char* CID, char* Hash, char* Signed_Hash);
+	void insert_pk_database(string key_ID, char* key_value);
+	string get_latest_key_ID(char* order);
+	void get_list(vector<string> &list, string table, string first_cid, string last_cid, int Switch);
+	MYSQL* mysql_connection_setup(struct db_user sql_user);
+	MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query);
+	void create_table();
+	void get_table_name();
+	void initDatabase(struct db_user *db_info);
+	void update_database(char* order);
+};
+
+bout_database::bout_database(){
+	get_table_name();
+	string s_dir(storage_dir);
+	string storage_dir_name = storage_dir + table_name;
+	x = table_name[8];
+	mkdir_func(storage_dir_name);
+
+    initDatabase(&mysqlID);
+	conn = mysql_connection_setup(mysqlID);
+}
+
+bout_database::~bout_database(){
+	mysql_free_result(res);
+	mysql_close(conn);
+}
+
+void bout_database::get_table_name(){
+	struct timeb tb;   // <sys/timeb.h>                       
+    struct tm tstruct;                      
+    std::ostringstream oss;   
+                           
+    char buf[128];                                            
+                                                              
+    ftime(&tb);
+    // For Thread safe, use localtime_r
+    if (nullptr != localtime_r(&tb.time, &tstruct)) {         
+        strftime(buf, sizeof(buf), "%Y_%m%d", &tstruct);
+        oss << buf; // YEAR_MMDD
+    }              
+
+    table_name = oss.str();
+}
+
+void bout_database::initDatabase(struct db_user *db_info){
 	db_info->server = DB_IP;
 	db_info->user = DB_user;
 	db_info->password = DB_password;
@@ -36,7 +95,7 @@ void initDatabase(struct db_user *db_info){
 	db_info->table = table_name;
 }
 
-MYSQL* mysql_connection_setup(struct db_user sql_user){
+MYSQL* bout_database::mysql_connection_setup(struct db_user sql_user){
   MYSQL *connection = mysql_init(NULL);
 
   if(!mysql_real_connect(connection, sql_user.server, sql_user.user, sql_user.password, sql_user.database, 0, NULL, 0)) {
@@ -47,7 +106,7 @@ MYSQL* mysql_connection_setup(struct db_user sql_user){
   return connection;
 }
 
-MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query) {
+MYSQL_RES* bout_database::mysql_perform_query(MYSQL *connection, char *sql_query) {
 	int retry_cnt = 5;
 	while(mysql_query(connection, sql_query) != 0){
 		if(retry_cnt-- == 0)
@@ -57,21 +116,21 @@ MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query) {
   return mysql_use_result(connection);
 }
 
-void insert_database(char* CID, char* Hash, char* Signed_Hash){
+void bout_database::insert_database(char* CID, char* Hash, char* Signed_Hash){
 	string sorder = "INSERT INTO " + table_name + " values('" + CID + "', '" + Hash + "', '" + Signed_Hash + "' ,0);";
 	char *order = new char[sorder.length() + 1];
 	strcpy(order, sorder.c_str());
 	res = mysql_perform_query(conn, order);
 }
 
-void insert_pk_database(string key_ID, char* key_value){
+void bout_database::insert_pk_database(string key_ID, char* key_value){
 	string sorder = "INSERT INTO public_key values('" + key_ID + "', '" + key_value + "', 1);";
 	char *order = new char[sorder.length() + 1];
 	strcpy(order, sorder.c_str());
 	res = mysql_perform_query(conn, order);
 }
 
-void create_table(){
+void bout_database::create_table(){
 	string sorder = "CREATE TABLE " + table_name + "(CID VARCHAR(24), Hash VARCHAR(64), Signed_Hash VARCHAR(350), Verified INTEGER);";
 	char *order = new char[sorder.length() + 1];
 	strcpy(order, sorder.c_str());
@@ -79,7 +138,7 @@ void create_table(){
 	res = mysql_use_result(conn);
 }
 
-void update_database(char* order){
+void bout_database::update_database(char* order){
 	res = mysql_perform_query(conn, order);
 	cout << endl << "---------------------------------------------------" << endl;
 	while((row = mysql_fetch_row(res)) != NULL){
@@ -88,7 +147,7 @@ void update_database(char* order){
 	}
 }
 
-string get_latest_key_ID(char* order){
+string bout_database::get_latest_key_ID(char* order){
 	res = mysql_perform_query(conn, order);
 	string key_ID;
 	while((row = mysql_fetch_row(res)) != NULL){
@@ -99,7 +158,7 @@ string get_latest_key_ID(char* order){
 	return key_ID;
 }
 
-void get_list(vector<string> &list, string table, string first_cid, string last_cid, int Switch){
+void bout_database::get_list(vector<string> &list, string table, string first_cid, string last_cid, int Switch){
 	string sorder;
 	if(Switch == 1)
 		sorder = "select key_ID from " + table + " where '" + first_cid + "' < key_ID and key_ID< '" + last_cid + "' order by key_ID;";
@@ -119,14 +178,4 @@ void get_list(vector<string> &list, string table, string first_cid, string last_
 	while((row = mysql_fetch_row(res)) != NULL){
 		list.push_back(row[0]);
 	}
-}
-
-void init_DB(struct db_user mysqlID){
-    initDatabase(&mysqlID);
-	conn = mysql_connection_setup(mysqlID);
-}
-
-void term_database(){
-    mysql_free_result(res);
-	mysql_close(conn);
 }

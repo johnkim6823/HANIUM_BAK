@@ -3,19 +3,43 @@
 #include <vector>
 #include <typeinfo>
 #include <map>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include "../DB/bout_database.cpp"
 
 using namespace std;
 #define THIS_IS_SERVER
 
-#include "server.h"
+void mkdir_func(string str);
 
-void* p_packet = &sendDataPacket;
+HEADERPACKET for_res_packet;
+void* p_packet = &for_res_packet;
+void make_res_Packet(uint8_t destID, uint8_t cmd, uint8_t dataType, uint32_t dataSize)
+{
+	for_res_packet.startID = ThisID;
+	for_res_packet.destID = destID;
+	for_res_packet.command = cmd;
+	for_res_packet.dataType = dataType;
+	for_res_packet.dataSize = dataSize;
+}
+
 void* recv_buf;
 char* CID = new char[CID_size];
 char* Hash = new char[Hash_size];
 char* Signed_Hash = new char[Signed_Hash_size];
 FILE* file;
+char x;
+string s_dir(storage_dir);
 
+bout_database bDB;
+
+/*
+ dataType : 0xa0 = char
+			0xa1 = unsigned char
+			0xb0 = int
+			0xb1 = unsigned int
+*/
 void reshape_buffer(int type, int datasize){
 	switch(type){
 		case 0xa0 : case 0xc0 : 
@@ -34,19 +58,19 @@ void reshape_buffer(int type, int datasize){
 	}
 }
 
-int still_alive(HEADERPACKET* msg){
+int still_alive(HEADERPACKET* msg, IO_PORT *port){
 	
 }
 
 /*------------------hi i am & nice to meet you----------------------------*/
-int hi_i_am(HEADERPACKET* msg){
-	insert_port(msg->destID, (int)&g_pNetwork->port.s);
-	makePacket(msg->startID, 0xf9, 0x00, 0x00);
+int hi_i_am(HEADERPACKET* msg, IO_PORT *port){
+	insert_port(msg->destID, port->s);
+	make_res_Packet(msg->startID, 0xf9, 0x00, 0x00);
 
-	send_binary(&g_pNetwork->port, sizeof(HEADERPACKET), p_packet);
+	send_binary(port, sizeof(HEADERPACKET), p_packet);
 	return 1;
 }
-int nice_to_meet_you(HEADERPACKET* msg){
+int nice_to_meet_you(HEADERPACKET* msg, IO_PORT *port){
 	cout << "Connect success to Server" << endl;
 	
 	return 1;
@@ -54,41 +78,40 @@ int nice_to_meet_you(HEADERPACKET* msg){
 /*------------------------------------------------------------------------*/
 
 /*------------------public key send & response----------------------------*/
-int public_key_send(HEADERPACKET* msg){
+int public_key_send(HEADERPACKET* msg, IO_PORT *port){
 	reshape_buffer(msg->dataType, msg->dataSize);
 	
-	if(recv_binary(&g_pNetwork->port, msg->dataSize, recv_buf) == 0){
+	if(recv_binary(port, msg->dataSize, recv_buf) == 0){
 		cout << "recv_binary fail" << endl;
 		return -1;
 	}
 	string sorder = "select key_ID from public_key where key_status = 1;";
 	char* order = new char[sorder.length() + 1];
 	strcpy(order, sorder.c_str());
-	string key_ID = get_latest_key_ID(order);
+	string key_ID = bDB.get_latest_key_ID(order);
 	
 	sorder = "update public_key set key_status = 0 where key_ID = '" + key_ID + "';";
 	delete [] order;
 	order = new char[sorder.length() + 1];
 	strcpy(order, sorder.c_str());
-	update_database(order);
+	bDB.update_database(order);
 	
 	string pk((char*)recv_buf);
 	char *key_value = new char[pk.length() + 1];
 	strcpy(key_value, pk.c_str());
-	insert_pk_database(getCID(), key_value);
+	bDB.insert_pk_database(getCID(), key_value);
 
 	return 1;
-
 }
-int public_key_response(HEADERPACKET* msg){
-	makePacket(Logger, PUBKEY_RES, 0xa0, 0);
+int public_key_response(HEADERPACKET* msg, IO_PORT *port){
+	make_res_Packet(Logger, PUBKEY_RES, 0xa0, 0);
 	
-	return send_binary(&g_pNetwork->port, CMD_HDR_SIZE, p_packet);
+	return send_binary(port, CMD_HDR_SIZE, p_packet);
 }
 /*------------------------------------------------------------------------*/
 
 /*-------------------video data send & response---------------------------*/
-int video_data_send(HEADERPACKET* msg){
+int video_data_send(HEADERPACKET* msg, IO_PORT *port){
 	reshape_buffer(msg->dataType, msg->dataSize);
 
 	memset(recv_buf, 0, msg->dataSize);
@@ -99,24 +122,19 @@ int video_data_send(HEADERPACKET* msg){
 	int frame_size =  msg->dataSize - CID_size - Hash_size - Signed_Hash_size;
 	FILE *file;
 
-	recv_binary(&g_pNetwork->port, CID_size, (void*)recv_buf);
+	recv_binary(port, CID_size, (void*)recv_buf);
 	strcpy(CID, (char*)recv_buf);
 	
-	
-	string s_dir = storage_dir;
-	
-	if(x != CID[9]){
-		table_name = get_table_name();
-		mkdir_func((s_dir + table_name).c_str());
-		create_table();
-		x = CID[9];
+	if(bDB.x != CID[9]){
+		bDB.get_table_name();
+		mkdir_func((s_dir + bDB.table_name).c_str());
+		bDB.create_table();
+		bDB.x = CID[9];
 	}
 
 	string frame_dir((const char*)recv_buf);
-	frame_dir = s_dir + table_name + "/" + frame_dir; 
+	frame_dir = s_dir + bDB.table_name + "/" + frame_dir; 
 	const char* file_name = frame_dir.c_str();
-
-	//cout << "video file name: " << file_name << endl;
 
 	file = fopen(file_name, "wb");
 
@@ -124,55 +142,44 @@ int video_data_send(HEADERPACKET* msg){
 		cout << "file creation failed " << endl;
 	memset(recv_buf, 0, msg->dataSize);
 
-	recv_binary(&g_pNetwork->port, Hash_size, (void*)recv_buf);
+	recv_binary(port, Hash_size, (void*)recv_buf);
 	strcpy(Hash, (char*)recv_buf);
 	memset(recv_buf, 0, msg->dataSize);
 
-	recv_binary(&g_pNetwork->port, Signed_Hash_size, (void*)recv_buf);
+	recv_binary(port, Signed_Hash_size, (void*)recv_buf);
 	strcpy(Signed_Hash, (char*)recv_buf);
 	memset(recv_buf, 0, msg->dataSize);
 
-	recv_binary(&g_pNetwork->port, frame_size, (void*)recv_buf);
+	recv_binary(port, frame_size, (void*)recv_buf);
 	fwrite(recv_buf, sizeof(char), frame_size, file);
 
-	
-	//cout << "CID: " << endl << CID << endl;
-	//cout << "CID size:" << strlen(CID) << endl;
-
-	//cout << "Hash: " << endl << Hash << endl;
-	//cout << "Hash size: " << strlen(Hash) << endl;
-
-	//cout << "Signed Hash: " << endl << Signed_Hash << endl;
-	//cout << "Signed Hash: " << strlen(Signed_Hash) << endl;
-	
-
-	makePacket(Logger, VIDEO_DATA_RES, 0, 0);
-	insert_database(CID, Hash, Signed_Hash);
+	make_res_Packet(Logger, VIDEO_DATA_RES, 0, 0);
+	bDB.insert_database(CID, Hash, Signed_Hash);
 
 	fflush(file);
 	fclose(file);
 
- 	send_binary(&g_pNetwork->port, sizeof(HEADERPACKET), p_packet);
+ 	send_binary(port, sizeof(HEADERPACKET), p_packet);
 	
 	return 1;
 }
-int video_data_response(HEADERPACKET* msg){
+int video_data_response(HEADERPACKET* msg, IO_PORT *port){
 	cout << "video data response recv" << endl;
 	return 1;
 }
 /*------------------------------------------------------------------------*/
 
-/*-----------------------Verify request & response------------------------*/
-int verify_request(HEADERPACKET* msg){
+/*-----------------------Verify request------------------------*/
+int verify_request(HEADERPACKET* msg, IO_PORT *port){
 	if(msg->destID == Server){
 		reshape_buffer(msg->dataType, msg->dataSize);
 
 		//Receive Start CID from WebUI
-		recv_binary(&g_pNetwork->port, msg->dataSize, (void*)recv_buf);
+		recv_binary(port, msg->dataSize, (void*)recv_buf);
 		string first_cid((char*)recv_buf);
 
 		//Receive End CID from WebUI
-		recv_binary(&g_pNetwork->port, msg->dataSize, (void*)recv_buf);
+		recv_binary(port, msg->dataSize, (void*)recv_buf);
 		string last_cid((char*)recv_buf);
 
 		if(first_cid > last_cid){
@@ -217,19 +224,19 @@ int verify_request(HEADERPACKET* msg){
 		else{
 			string vtable_name = start_cid.Year + '_' + start_cid.Month + start_cid.Day;
 			
-			get_list(pk_list, "public_key", "-1", first_cid, -1);
-			get_list(pk_list, "public_key", first_cid, last_cid, 1);
+			bDB.get_list(pk_list, "public_key", "-1", first_cid, -1);
+			bDB.get_list(pk_list, "public_key", first_cid, last_cid, 1);
 
-			get_list(CID_list, vtable_name, first_cid, pk_list[1], 0);
+			bDB.get_list(CID_list, vtable_name, first_cid, pk_list[1], 0);
 			key_CID_map[pk_list[0]] = CID_list;
 			CID_list.clear();
 			for(int i = 1; i < pk_list.size() - 1; i++){
-				get_list(CID_list, vtable_name, pk_list[i], pk_list[i + 1], 0);
+				bDB.get_list(CID_list, vtable_name, pk_list[i], pk_list[i + 1], 0);
 				key_CID_map[pk_list[i]] = CID_list;
 				CID_list.clear();
 			}
 
-			get_list(CID_list, vtable_name, pk_list[pk_list.size()-1], last_cid, 0);
+			bDB.get_list(CID_list, vtable_name, pk_list[pk_list.size()-1], last_cid, 0);
 			key_CID_map[pk_list[pk_list.size()-1]] = CID_list;
 			CID_list.clear();
 		}
@@ -239,7 +246,7 @@ int verify_request(HEADERPACKET* msg){
 			vector<string> inVect = (*iter).second;
 			int str_size = CID_size * (inVect.size() + 1);
 
-			makePacket(Verifier, VER_REQ, Uchar, str_size);
+			make_res_Packet(Verifier, VER_REQ, Uchar, str_size);
 			//send_binary(Verifier_port, sizeof(HEADERPACKET), p_packet);
 
 			unsigned char *PK = new unsigned char[CID_size];
@@ -262,57 +269,16 @@ int verify_request(HEADERPACKET* msg){
 		exit(1);
 	}
 }
-
-int verify_response(HEADERPACKET* msg){
-	if(msg->destID == Server){
-		reshape_buffer(msg->dataType, msg->dataSize);
-		recv_binary(&g_pNetwork->port, msg->dataSize, (void*)recv_buf);
-	}
-	else if(msg->destID == WebUI){
-		
-	}
-}
 /*------------------------------------------------------------------------*/
-
-/*--------------------------Verify result send----------------------------*/
-int verified_result_send(HEADERPACKET* msg){
-
-}
-int verified_result_response(HEADERPACKET* msg){
-
-}
-/*------------------------------------------------------------------------*/
-
-
-/*-------------------------Hash request & response------------------------*/
-int hash_request(HEADERPACKET* msg){
-	makePacket(Logger, HASH_REQ, 0, 0);
-	send_binary(&g_pNetwork->port, sizeof(HEADERPACKET), p_packet);
-
-	return 1;
-}
-
-int hash_send(HEADERPACKET* msg){
-	cout << "hash request receive";
-	return 1;
-}
-/*------------------------------------------------------------------------*/
-
-
 
 /*
  This function is for test. Receive data and write down .txt file. 
- commmad : 0xff
- dataType : 0xa0 = char
-			0xa1 = unsigned char
-			0xb0 = int
-			0xb1 = unsigned int
 */
-int test(HEADERPACKET* msg){
+int test(HEADERPACKET* msg, IO_PORT *port){
 	FILE *file = fopen("test.txt", "wb");
 	reshape_buffer(msg->dataType, msg->dataSize);
 	
-	if(recv_binary(&g_pNetwork->port, msg->dataSize, recv_buf) == 0){
+	if(recv_binary(port, msg->dataSize, recv_buf) == 0){
 		cout << "recv_binary fail" << endl;
 		return -1;
 	}

@@ -11,7 +11,9 @@
 
 using namespace std;
 
+#include "command_define_list.h"
 #include "server_cfg.h"
+//#include "command_parser.h"
 
 #define HANDLE void*
 
@@ -37,7 +39,7 @@ typedef struct
 
 typedef struct
 {
-	u_int8_t startID; //濡쒓�?, �??利앷�?, ?꽌踰? ...
+	u_int8_t startID;
 	u_int8_t destID;
 	u_int8_t command;
 	u_int8_t dataType;
@@ -77,12 +79,11 @@ int send_binary( IO_PORT *p, long nSize, HANDLE pdata );
 int recv_binary( IO_PORT *p, long size, HANDLE pdata );
 
 string getCID();
-string get_table_name();
 void mkdir_func(string str);
-void create_table();
 void insert_port(int ID, int port);
 void pop_port(int ID);
 void makePacket(uint8_t destID, uint8_t cmd, uint8_t dataType, uint32_t dataSize);
+int cmd_parser(IO_PORT port, HEADERPACKET *pmsg);
 
 #endif
 
@@ -93,10 +94,6 @@ void makePacket(uint8_t destID, uint8_t cmd, uint8_t dataType, uint32_t dataSize
 NETWORK_CONTEXT *g_pNetwork;
 HEADERPACKET sendDataPacket;
 map<int, int> client_port_map;
-
-char x;
-
-#include "../DB/bout_database.cpp"
 
 #endif
 #endif
