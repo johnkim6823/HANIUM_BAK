@@ -12,8 +12,6 @@
 using namespace std;
 
 #include "command_define_list.h"
-#include "server_cfg.h"
-//#include "command_parser.h"
 
 #define HANDLE void*
 

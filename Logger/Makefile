@@ -6,7 +6,7 @@ CXX = g++
 SIGN_VER_FLAGS = -lssl -lcrypto -L /usr/local/opt/openssl/lib
 
 OPENCV = `pkg-config opencv4 --cflags --libs`
-LIBS = $(OPENCV) -lpthread
+LIBS = $(OPENCV) -lpthread -I/usr/include/mysql -L/usr/lib64/mysql -lmysqlclient
 #--sources----
 SOURCES :=   command_parser.cpp Logger.cpp
 
@@ -19,7 +19,7 @@ Logger: $(OBJS)
 	$(CXX)  $(OBJS) -o $@ $(LIBS) $(SIGN_VER_FLAGS)
 
 command_parser.o: ./../Client/command_parser.cpp
-	$(CXX) -c -o $@ $<
+	$(CXX) $(LIBS) -c -o $@ $<
 
 Logger.o: ./Logger.cpp
 	${CXX} -c -o $@  $< $(LIBS) 

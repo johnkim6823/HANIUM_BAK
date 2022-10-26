@@ -32,6 +32,7 @@ int fps = DEFAULT_FPS;
 
 cv::VideoCapture cap;
 cv::Mat frame(cv::Size(width, height), CV_8UC3);
+string getCID();
 
 pthread_mutex_t frameLocker;
 pthread_t UpdThread;
@@ -65,7 +66,7 @@ int send_pubKey_to_server()
     char *pubKey_buffer = new char[pubKey_bufsize];
     strcpy(pubKey_buffer, publicKey.c_str());
 
-    makePacket(0x00, 0xa0, strlen(pubKey_buffer));
+    makePacket(Server, 0x00, 0xa0, strlen(pubKey_buffer));
     void *p_packet = &sendDataPacket;
 
     if (!send_binary(&g_pNetwork->port, CMD_HDR_SIZE, p_packet))
@@ -407,38 +408,38 @@ void sign_hash(queue<string> &HASH_QUEUE)
     cout << "    Signed Hash made: " << hash_signed_queue.size() << endl;
 }
 
-string getCID()
-{
-    struct timeb tb; // <sys/timeb.h>
-    struct tm tstruct;
-    std::ostringstream oss;
+// string getCID()
+// {
+//     struct timeb tb; // <sys/timeb.h>
+//     struct tm tstruct;
+//     std::ostringstream oss;
 
-    string s_CID;
-    char buf[128];
+//     string s_CID;
+//     char buf[128];
 
-    ftime(&tb);
-    // For Thread safe, use localtime_r
-    if (nullptr != localtime_r(&tb.time, &tstruct))
-    {
-        strftime(buf, sizeof(buf), "%Y-%m-%d_%T.", &tstruct);
-        oss << buf;        // YEAR-MM-DD HH-mm_SS
-        oss << tb.millitm; // millisecond
-    }
+//     ftime(&tb);
+//     // For Thread safe, use localtime_r
+//     if (nullptr != localtime_r(&tb.time, &tstruct))
+//     {
+//         strftime(buf, sizeof(buf), "%Y-%m-%d_%T.", &tstruct);
+//         oss << buf;        // YEAR-MM-DD HH-mm_SS
+//         oss << tb.millitm; // millisecond
+//     }
 
-    s_CID = oss.str();
+//     s_CID = oss.str();
 
-    s_CID = s_CID.substr(0, 23);
-    if (s_CID.length() == 22)
-    {
-        s_CID = s_CID.append("0");
-    }
-    if (s_CID.length() == 21)
-    {
-        s_CID = s_CID.append("00");
-    }
+//     s_CID = s_CID.substr(0, 23);
+//     if (s_CID.length() == 22)
+//     {
+//         s_CID = s_CID.append("0");
+//     }
+//     if (s_CID.length() == 21)
+//     {
+//         s_CID = s_CID.append("00");
+//     }
 
-    return s_CID;
-}
+//     return s_CID;
+// }
 
 void send_image_hash_to_UI(queue<cv::Mat> &ORI, queue<cv::Mat> &Y)
 {
@@ -512,7 +513,7 @@ void send_data_to_server(queue<string> &CID_QUEUE, queue<string> &HASH_QUEUE, qu
         strcpy(signed_hash_buffer, signed_hash_send.front().c_str());
         memcpy(video_buffer, yuv_send.front().data, video_bufsize);
 
-        makePacket(VIDEO_DATA_SND, 0xa1, total_data_size);
+        makePacket(Server, VIDEO_DATA_SND, 0xa1, total_data_size);
 
         // cout << hex << (int)sendDataPacket.startID << endl;
         // cout << (int)sendDataPacket.destID << endl;

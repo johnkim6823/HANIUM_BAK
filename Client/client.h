@@ -1,11 +1,16 @@
 
+#include <iostream>
+#include <string>
 #include <pthread.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <map>
 
 #include "client_cfg.h"
+
+using namespace std; 
 
 #define HANDLE void*
 
@@ -15,19 +20,24 @@
 
 #define SOCKET u_int32_t
 
+/*Communication protocol*/
+#define CMD_HDR_SIZE 8	
+#define SERVER_PROTOCOL_PORT 8700
+#define ASYNC_BUFSIZE 4096
+#define MAX_USER_CNT 5
+
 #ifndef __SERVERSOCKET_HEADER__
 #define __SERVERSOCKET_HEADER__
 
 typedef struct
 {
-    char* Year;
-    char* Month;
-    char* Day;
-    char* Hour;
-    char* Min;
-    char* Sec;
-    char* MSec;
-	
+	string Year;
+    string Month;
+    string Day;
+    string Hour;
+    string Min;
+    string Sec;
+	string Msec;
 } CIDINFO;
 
 typedef struct
@@ -71,19 +81,22 @@ void termClient();
 
 int send_binary( IO_PORT *p, long nSize, HANDLE pdata );
 int recv_binary( IO_PORT *p, long size,  HANDLE pdata );
-void makePacket(uint8_t cmd, uint8_t dataType, uint32_t dataSize);
-int ClientServiceThread(void *arg);
+void makePacket(uint8_t destID, uint8_t cmd, uint8_t dataType, uint32_t dataSize);
+int cmd_parser(IO_PORT port, HEADERPACKET *pmsg);
+
+void insert_port(int ID, int port);
+void pop_port(int ID);
+string getCID();
 
 #endif
 
-#ifdef THIS_IS_SERVER
+#ifdef THIS_IS_CLIENT
 #ifndef PLZ_R_ONE_TIME
 #define PLZ_R_ONE_TIME
 
 NETWORK_CONTEXT *g_pNetwork;
 HEADERPACKET sendDataPacket;
-char x;
-string table_name;
+map<int, int> client_port_map;
 
 #endif
 #endif

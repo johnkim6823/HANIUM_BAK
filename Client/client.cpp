@@ -10,14 +10,15 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <cstdint>
+#include <map>
+#include <mutex>
+#include <thread>
 
-#define THIS_IS_SERVER
+#define THIS_IS_CLIENT
 
 #include "client.h"
 #include "tracex.h"
 #include "command_define_list.h"
-#include "command_parser.h"
-#include "command_function_list.cpp"
 
 #include <iostream>
 
@@ -26,16 +27,91 @@
 
 using namespace std;
 
+string getCID() {
+    struct timeb tb;   // <sys/timeb.h>                       
+    struct tm tstruct;                      
+    std::ostringstream oss;   
+    
+    string s_CID;                             
+    char buf[128];                                            
+                                                              
+    ftime(&tb);
+    // For Thread safe, use localtime_r
+    if (nullptr != localtime_r(&tb.time, &tstruct)) {         
+        strftime(buf, sizeof(buf), "%Y-%m-%d_%T.", &tstruct);  
+        oss << buf; // YEAR-MM-DD HH-mm_SS            
+        oss << tb.millitm; // millisecond               
+    }              
+
+    s_CID = oss.str();
+    
+    s_CID = s_CID.substr(0,23);
+    if(s_CID.length() == 22) {
+        s_CID = s_CID.append("0");
+    }
+    if(s_CID.length() == 21) {
+        s_CID = s_CID.append("00");
+    }
+    
+    return s_CID;
+}
+
+void insert_port(int ID, int port){
+	static mutex m;
+	while(true){
+		if(m.try_lock()){
+			client_port_map.insert({port, ID});
+			m.unlock();
+			break;
+		}
+		else{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+	}
+
+	while(true){
+		if(m.try_lock()){
+			map<int, int>::iterator iter;
+			for(iter = client_port_map.begin(); iter != client_port_map.end(); ++iter){
+				cout << "key : " << (*iter).first << ", value : " << (*iter).second << endl;
+			}
+			m.unlock();
+			break;
+		}
+		else{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+	}
+}
+
+void pop_port(int port){
+	static mutex m;
+	while(true){
+		if(m.try_lock()){
+			map<int, int>::iterator iter;
+			for(iter = client_port_map.begin(); iter != client_port_map.end(); ++iter){
+				if((*iter).second == port)
+					client_port_map.erase((*iter).first);
+			}
+			m.unlock();
+			break;
+		}
+		else{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+	}
+}
+
 void closesocket(SOCKET sock_fd);
 
-void makePacket(uint8_t cmd, uint8_t dataType, uint32_t datasize)
+void makePacket(uint8_t destID, uint8_t cmd, uint8_t dataType, uint32_t dataSize)
 {
 	memset(&sendDataPacket, 0, sizeof(HEADERPACKET));
 	sendDataPacket.startID = Logger; 
-	sendDataPacket.destID = Server;
+	sendDataPacket.destID = destID;
 	sendDataPacket.command = cmd;
 	sendDataPacket.dataType = dataType;
-	sendDataPacket.dataSize = datasize;
+	sendDataPacket.dataSize = dataSize;
 }
 
 int __send( IO_PORT *p, void *pdata, int len )
@@ -223,7 +299,7 @@ int ClientServiceThread(void *arg)
 		usleep(10000);
 	}
 SERVICE_DONE:
-	closesocket(fd_socket);
+	termClient();
 	return 1;
 }
 
@@ -251,6 +327,7 @@ int initClient()
 {
 	cout << "----Client Initializing----" << endl;
 
+
 	g_pNetwork = (NETWORK_CONTEXT*) malloc(sizeof(NETWORK_CONTEXT));
 	g_pNetwork->m_socket = create_socket();
 
@@ -269,12 +346,6 @@ int initClient()
 		return -1;
 	}
 
-	// int ret = pthread_create(&g_pNetwork->clientThread, NULL, ClientServiceThread, (void*)&g_pNetwork->port);
-	// if( ret != 0 ){
-	// 	TRACE_ERR( "ERROR create ptt client service thread\n" );
-	// 	return FALSE;
-	// }
-	
 	cout << "----Initializing END----" << endl << endl;
 
 	return TRUE;
@@ -282,13 +353,9 @@ int initClient()
 
 void termClient()
 {
-	closesocket(g_pNetwork->m_socket);
+	close(g_pNetwork->m_socket);
 	free(g_pNetwork);
 	cout << "terminate Client end" << endl;
-}
-
-void closesocket(SOCKET sock_fd){
-	close(sock_fd);
 }
 
 
