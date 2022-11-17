@@ -9,6 +9,7 @@
 #include "../DB/bout_database.cpp"
 
 using namespace std;
+#define THIS_IS_SERVER
 
 void mkdir_func(string str);
 
@@ -267,18 +268,6 @@ int verify_request(HEADERPACKET* msg, IO_PORT *port){
 		cout << "Something was wrong..." << endl;
 		exit(1);
 	}
-}
-int verify_response(HEADERPACKET* msg, IO_PORT *port){
-	reshape_buffer(Char, CID_size);
-	recv_binary(port, CID_size, (void*)recv_buf);
-
-
-}
-int verify_to_prover(HEADERPACKET *msg, IO_PORT *port){
-	bDB.Prover_Switch = true;
-}
-int prover_response(HEADERPACKET* msg, IO_PORT *port){
-
 }
 /*------------------------------------------------------------------------*/
 

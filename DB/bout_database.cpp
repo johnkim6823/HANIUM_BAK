@@ -38,6 +38,7 @@ private:
 public:
 	char x;
 	string table_name;
+	bool Prover_Switch = false;
 
 	bout_database();
 	~bout_database();
@@ -51,6 +52,8 @@ public:
 	void get_table_name();
 	void initDatabase(struct db_user *db_info);
 	void update_database(char* order);
+	string verified_table();
+
 };
 
 bout_database::bout_database(){
@@ -58,10 +61,12 @@ bout_database::bout_database(){
 	string s_dir(storage_dir);
 	string storage_dir_name = storage_dir + table_name;
 	x = table_name[8];
-	mkdir_func(storage_dir_name);
+	if(ThisID == Server)mkdir_func(storage_dir_name);
 
     initDatabase(&mysqlID);
 	conn = mysql_connection_setup(mysqlID);
+
+	cout << "Initialized Database" << endl; 
 }
 
 bout_database::~bout_database(){
@@ -177,4 +182,29 @@ void bout_database::get_list(vector<string> &list, string table, string first_ci
 	while((row = mysql_fetch_row(res)) != NULL){
 		list.push_back(row[0]);
 	}
+}
+
+string bout_database::verified_table(){
+	string sorder = "select table_name from information_schema.tables where table_schema=schema() and table_name like '%20%' order by table_name;";
+	char *order = new char[sorder.length() + 1];
+	strcpy(order, sorder.c_str());
+	res = mysql_perform_query(conn, order);
+	vector<string> table_list;
+	string verified_table;
+
+	while((row = mysql_fetch_row(res)) != NULL){
+		table_list.push_back(row[0]);
+	}
+
+	while(!table_list.empty()){
+		//verified_table = table_list.();
+		sorder = "select CID from " + verified_table + " where verified = 0;";
+		delete [] order;
+		order = new char[sorder.length() + 1];
+		strcpy(order, sorder.c_str());
+		res = mysql_perform_query(conn, order);
+		if((row = mysql_fetch_row(res)) == NULL)
+			return verified_table;
+	}
+	
 }

@@ -15,9 +15,6 @@ cmdp_desp parser_desp[] =
 	{VIDEO_DATA_SND				, video_data_send		},
 	{VIDEO_DATA_RES				, video_data_response	},
 	{VER_REQ					, verify_request		},
-	{VER_RES					, verify_response		},
-	{VER_2_PROV					, verify_to_prover		},
-	{PROV_RES					, prover_response		},
 	
 	{STILL_ALIVE				, still_alive			},
 	{HI_I_M						, hi_i_am				},
@@ -58,7 +55,7 @@ int cmd_parser(IO_PORT port, HEADERPACKET *pmsg)
 		}
 	}
 	if(ack == -3) {
-		cout << "Somethings Wrong... callback function doesn't work";
+		cout << "Somethings Wrong... callback function doesn't work X(";
 		return -1;
 	}
 	else if(ack == -1){

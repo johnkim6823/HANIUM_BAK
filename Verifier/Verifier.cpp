@@ -17,7 +17,10 @@
 #include <fstream>
 #include <filesystem>
 #include <error.h>
+#include <ofstream>
+#include <ifstream>
 
+#include "command_define_list.h"
 #include "verifier_cfg.h"
 #include "Verifier_function_list.h"
 #include "verify.cpp"
@@ -25,6 +28,7 @@
 #include "../Merkle_Tree/node.cpp"
 #include "../msg_queue/msg_queue.cpp"
 #include "../DB/bout_database.cpp"
+
 
 using namespace std;
 
@@ -34,6 +38,7 @@ queue<cv::Mat> feature_vector_queue; // for edge detection Canny
 queue<string> hash_DB_queue;         // for hash from server
 queue<string> hash_verifier_queue;   // for hash made by feature vector by verifier
 queue<string> cid_queue;             // for CID for images
+bout_database bDB;
 
 int read_pubKey()
 {
@@ -66,40 +71,40 @@ int read_pubKey()
 
 int get_data_from_DB(string &CID, queue<string> &CID_QUEUE, queue<string> &HASH_DB_QUEUE)
 {
-    init_DB(mysqlID);
+    // init_DB(mysqlID);
 
-    string table_name = CID.substr(0, 4) + "_" + CID.substr(5, 2) + CID.substr(8, 2);
-    string sorder = "select CID, Hash, Signed_Hash from " + table_name + " where Verified = 0 order by CID DESC limit 10; ";
+    // string table_name = CID.substr(0, 4) + "_" + CID.substr(5, 2) + CID.substr(8, 2);
+    // string sorder = "select CID, Hash, Signed_Hash from " + table_name + " where Verified = 0 order by CID DESC limit 10; ";
 
-    char *order = new char[sorder.length() + 1];
-    strcpy(order, sorder.c_str());
-    res = mysql_perform_query(conn, order);
-    int i = 0;
-    while ((row = mysql_fetch_row(res)) != NULL)
-    {
-        string s_CID = row[0];
-        CID_QUEUE.push(s_CID);
+    // char *order = new char[sorder.length() + 1];
+    // strcpy(order, sorder.c_str());
+    // res = mysql_perform_query(conn, order);
+    // int i = 0;
+    // while ((row = mysql_fetch_row(res)) != NULL)
+    // {
+    //     string s_CID = row[0];
+    //     CID_QUEUE.push(s_CID);
 
-        string s_hash_DB = row[1];
-        string s_signed_hash_DB = row[2];
+    //     string s_hash_DB = row[1];
+    //     string s_signed_hash_DB = row[2];
 
-        char *c_signed_hash_DB = new char[Signed_Hash_size];
-        strcpy(c_signed_hash_DB, s_signed_hash_DB.c_str());
+    //     char *c_signed_hash_DB = new char[Signed_Hash_size];
+    //     strcpy(c_signed_hash_DB, s_signed_hash_DB.c_str());
 
-        bool authentic = verifySignature(publicKey, s_hash_DB, c_signed_hash_DB);
-        if (authentic)
-        {
-            cout << s_CID << "'s signed hash is verified." << endl;
-            HASH_DB_QUEUE.push(row[1]);
-        }
-        else
-        {
-            cout << "Not Authentic." << endl;
-        }
-    }
+    //     bool authentic = verifySignature(publicKey, s_hash_DB, c_signed_hash_DB);
+    //     if (authentic)
+    //     {
+    //         cout << s_CID << "'s signed hash is verified." << endl;
+    //         HASH_DB_QUEUE.push(row[1]);
+    //     }
+    //     else
+    //     {
+    //         cout << "Not Authentic." << endl;
+    //     }
+    // }
 
-    cout << "CID queue size: " << CID_QUEUE.size() << endl;
-    cout << "HASH queue size: " << HASH_DB_QUEUE.size() << endl;
+    // cout << "CID queue size: " << CID_QUEUE.size() << endl;
+    // cout << "HASH queue size: " << HASH_DB_QUEUE.size() << endl;
     return 0;
 }
 
@@ -339,25 +344,33 @@ void init_queue()
 int main()
 {
 
-    read_pubKey();
+    // read_pubKey();
 
-    string S_CID = "2022-10-19_16:53:57.271";
+    // string S_CID = "2022-10-19_16:53:57.271";
 
-    Server2Verifier_CID_send(S_CID);
-    string V_CID = Server2Verifier_CID_recv();
+    // Server2Verifier_CID_send(S_CID);
+    // string V_CID = Server2Verifier_CID_recv();
 
-    Verifier2Server_CID_res_send();
-    Verifier2Server_CID_res_recv();
+    // Verifier2Server_CID_res_send();
+    // Verifier2Server_CID_res_recv();
 
-    get_data_from_DB(V_CID, cid_queue, hash_DB_queue);
-    read_video_data(V_CID, cid_queue);
+    // get_data_from_DB(V_CID, cid_queue, hash_DB_queue);
+    // read_video_data(V_CID, cid_queue);
 
-    convert_frames(yuv420_queue);
-    edge_detection(y_queue);
-    make_hash(feature_vector_queue);
-    //show_hash(hash_DB_queue, hash_verifier_queue);
+    // convert_frames(yuv420_queue);
+    // edge_detection(y_queue);
+    // make_hash(feature_vector_queue);
+    // //show_hash(hash_DB_queue, hash_verifier_queue);
 
-    make_merkle_tree(hash_DB_queue, hash_verifier_queue);
-    init_all_setting();
+    // make_merkle_tree(hash_DB_queue, hash_verifier_queue);
+    // init_all_setting();
+    string x = "select CID from 2022_1027 where verified == 1";
+    char *xx = new char[x.length() + 1];
+    strcpy(xx, x.c_str());
+
+    string y = bDB.get_latest_key_ID(xx);
+
+    cout << y << endl;
+
     return 0;
 }
