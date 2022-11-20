@@ -157,6 +157,14 @@ void init_queue()
         cid_queue.pop();
 }
 
+void lamping_time() {
+    Mat temp;
+    for(int i = 0; i< 20; i++){
+        cap >> temp;
+    }
+    temp.release();
+}
+
 void *UpdateFrame(void *arg)
 {
     while (true)
