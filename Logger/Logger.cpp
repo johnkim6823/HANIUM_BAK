@@ -81,17 +81,20 @@ int send_pubKey_to_server()
     cout << "----SENDING PUBKEY to SERVER END----" << endl;
 }
 
+void open_camera() {
+    
+     // open the default camera using default API
+    int deviceID = 0;         // 0 = open default camera
+    int apiID = cv::CAP_V4L2; // use V4L2
+    // open selected camera using selected API
+    cap.open(deviceID, apiID);   
+}
+
 int init()
 {
     cout << "----Initalizing---------" << endl
          << endl;
-
-    // open the default camera using default API
-    int deviceID = 0;         // 0 = open default camera
-    int apiID = cv::CAP_V4L2; // use V4L2
-    // open selected camera using selected API
-    cap.open(deviceID, apiID);
-
+   
     camera_cfg_recv(width, height, fps);
 
     cap.set(cv::CAP_PROP_FRAME_WIDTH, width );
@@ -593,6 +596,9 @@ int main(int, char **)
     }
 
     send_pubKey_to_server();
+    
+    open_camera();
+    lamping_time();
     
     while (true)
     {
